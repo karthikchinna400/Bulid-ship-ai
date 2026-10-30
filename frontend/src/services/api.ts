@@ -1,14 +1,15 @@
 import axios from 'axios';
 import { supabase, isPlaceholderSupabaseConfig } from '../lib/supabase';
+import { handleClientFallbackRequest } from './clientFallbackEngine';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
 
 export const LOCAL_TOKEN_STORAGE_KEY = 'privacyguard_auth_token';
 export const LOCAL_USER_STORAGE_KEY = 'privacyguard_auth_user';
 
 export const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 45000,
+  baseURL: configuredBaseUrl,
+  timeout: 25000,
 });
 
 apiClient.interceptors.request.use(async (config) => {
@@ -27,6 +28,22 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
+// Automatically fall back to client-side PrivacyGuard AI engine if the backend server is unreachable
+// (e.g. when testing a Vercel deployment before Render backend URL is linked, or during Render cold start)
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (
+      axios.isAxiosError(error) &&
+      (!error.response || error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') &&
+      error.config
+    ) {
+      return handleClientFallbackRequest(error.config);
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const extractApiError = (error: unknown): string => {
   if (axios.isAxiosError(error)) {
     return (
@@ -40,4 +57,3 @@ export const extractApiError = (error: unknown): string => {
   }
   return 'An unexpected error occurred.';
 };
-
