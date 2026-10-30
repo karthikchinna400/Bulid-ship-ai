@@ -320,7 +320,11 @@ export const handleClientFallbackRequest = async (
   const method = (config.method || 'get').toUpperCase();
   const rawUrl = config.url || '';
   const [pathname, queryString] = rawUrl.split('?');
-  const path = pathname.replace(/^https?:\/\/[^/]+\/api\/v1/, '').replace(/^\/api\/v1/, '');
+  const cleanPathname = pathname
+    .replace(/^https?:\/\/[^/]+/, '')
+    .replace(/^\/api\/v1/, '')
+    .replace(/^\/api/, '');
+  const path = cleanPathname.startsWith('/') ? cleanPathname : `/${cleanPathname}`;
 
   const makeResponse = (data: unknown, status = 200): AxiosResponse => ({
     data,
@@ -767,6 +771,49 @@ export const handleClientFallbackRequest = async (
       });
     }
 
+    if (method === 'GET' && subRoute === 'findings') {
+      return makeResponse({
+        success: true,
+        data: { findings },
+      });
+    }
+
+    if (method === 'POST' && subRoute === 'analyze') {
+      return makeResponse({
+        success: true,
+        data: { scan, findings, report },
+      });
+    }
+
+    if (method === 'GET' && subRoute === 'risk') {
+      return makeResponse({
+        success: true,
+        data: {
+          riskScore: scan.risk_score,
+          riskLevel: scan.risk_level,
+          riskBreakdown: report?.risk_breakdown || {},
+          riskExplanation: report?.risk_explanation || '',
+        },
+      });
+    }
+
+    if (method === 'POST' && subRoute === 'recommendations') {
+      return makeResponse({
+        success: true,
+        data: {
+          recommendations: report?.recommendations || [],
+          sharingGuidance: report?.sharing_guidance || '',
+        },
+      });
+    }
+
+    if (method === 'GET' && subRoute === 'redaction-history') {
+      return makeResponse({
+        success: true,
+        data: { redactions: state.redactions.filter((r) => r.scan_id === scanId) },
+      });
+    }
+
     if (method === 'GET' && subRoute === 'report/pdf') {
       const textSummary = [
         'PRIVACYGUARD AI — OFFICIAL PRIVACY ASSESSMENT REPORT',
@@ -857,6 +904,43 @@ export const handleClientFallbackRequest = async (
     });
   }
 
+  const convMatch = path.match(/^\/assistant\/conversations\/([^/]+)$/);
+  if (convMatch) {
+    const convId = convMatch[1];
+    if (method === 'GET') {
+      const conversation = state.conversations.find((c) => c.id === convId) || null;
+      const messages = state.messages.filter((m) => m.conversation_id === convId);
+      return makeResponse({
+        success: true,
+        data: { conversation, messages },
+      });
+    }
+    if (method === 'DELETE') {
+      state.conversations = state.conversations.filter((c) => c.id !== convId);
+      state.messages = state.messages.filter((m) => m.conversation_id !== convId);
+      saveState(state);
+      return makeResponse({
+        success: true,
+        data: { deletedConversationId: convId },
+      });
+    }
+  }
+
+  const findingMatch = path.match(/^\/findings\/([^/]+)$/);
+  if (findingMatch && method === 'PATCH') {
+    const findingId = findingMatch[1];
+    const body = parseBody();
+    const finding = state.findings.find((f) => f.id === findingId);
+    if (finding) {
+      Object.assign(finding, body);
+      saveState(state);
+    }
+    return makeResponse({
+      success: true,
+      data: { finding },
+    });
+  }
+
   // 8. Alerts & Settings
   if (method === 'GET' && path === '/alerts') {
     return makeResponse({
@@ -864,6 +948,31 @@ export const handleClientFallbackRequest = async (
       data: {
         alerts: state.alerts.filter((a) => a.user_id === currentUser.id),
       },
+    });
+  }
+
+  const alertReadMatch = path.match(/^\/alerts\/([^/]+)\/read$/);
+  if (alertReadMatch && method === 'PATCH') {
+    const alertId = alertReadMatch[1];
+    const alert = state.alerts.find((a) => a.id === alertId);
+    if (alert) {
+      alert.is_read = true;
+      saveState(state);
+    }
+    return makeResponse({
+      success: true,
+      data: { alert },
+    });
+  }
+
+  const alertDeleteMatch = path.match(/^\/alerts\/([^/]+)$/);
+  if (alertDeleteMatch && method === 'DELETE') {
+    const alertId = alertDeleteMatch[1];
+    state.alerts = state.alerts.filter((a) => a.id !== alertId);
+    saveState(state);
+    return makeResponse({
+      success: true,
+      data: { deletedAlertId: alertId },
     });
   }
 

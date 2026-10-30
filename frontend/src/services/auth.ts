@@ -84,6 +84,14 @@ export const authService = {
       const res = await apiClient.get('/auth/me');
       return res.data.data.user as UserProfile;
     } catch {
+      const cachedUser = localStorage.getItem(LOCAL_USER_STORAGE_KEY);
+      if (localToken && cachedUser) {
+        try {
+          return JSON.parse(cachedUser) as UserProfile;
+        } catch {
+          // Ignore parse error
+        }
+      }
       localStorage.removeItem(LOCAL_TOKEN_STORAGE_KEY);
       localStorage.removeItem(LOCAL_USER_STORAGE_KEY);
       return null;

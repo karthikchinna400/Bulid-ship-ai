@@ -87,6 +87,19 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 // 6. Root & Health Endpoints
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'PrivacyGuard AI Server is running',
+    data: {
+      status: 'ok',
+      apiBasePath: '/api/v1',
+      environment: env.NODE_ENV,
+      timestamp: new Date().toISOString(),
+    },
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,
@@ -99,8 +112,10 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// 7. API v1 Routes
+// 7. API Routes (support /api/v1, /api, and root-level API calls if VITE_API_BASE_URL omits /api/v1)
 app.use('/api/v1', apiRouter);
+app.use('/api', apiRouter);
+app.use('/', apiRouter);
 
 // 8. 404 Handler
 app.use((_req, res) => {

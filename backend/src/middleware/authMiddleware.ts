@@ -28,6 +28,23 @@ export const createLocalDevToken = (user: { id: string; email: string; fullName?
 };
 
 export const verifyLocalDevToken = (token: string): AuthenticatedUser | null => {
+  if (token.startsWith('pg_local_client.')) {
+    const rawPayload = token.slice('pg_local_client.'.length);
+    try {
+      const decoded = JSON.parse(Buffer.from(rawPayload, 'base64').toString('utf-8'));
+      if (decoded.id && decoded.email) {
+        return {
+          id: decoded.id,
+          email: decoded.email,
+          fullName: decoded.full_name || decoded.email.split('@')[0],
+          accessToken: token,
+        };
+      }
+    } catch {
+      return null;
+    }
+  }
+
   if (!token.startsWith('pg_local.')) return null;
   const parts = token.split('.');
   if (parts.length !== 3) return null;
@@ -80,8 +97,8 @@ export const requireAuth = async (
       return;
     }
 
-    // 1. Check server-signed HMAC session token (pg_local.*)
-    if (token.startsWith('pg_local.')) {
+    // 1. Check server-signed HMAC session token (pg_local.* or pg_local_client.*)
+    if (token.startsWith('pg_local.') || token.startsWith('pg_local_client.')) {
       const localUser = verifyLocalDevToken(token);
       if (!localUser) {
         res.status(401).json({

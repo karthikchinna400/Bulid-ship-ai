@@ -64,57 +64,54 @@ apiRouter.post('/auth/register', registerAccount);
 apiRouter.post('/auth/login', loginAccount);
 apiRouter.post('/auth/local-session', createLocalSession);
 
-// All protected routes require verified authentication token
-apiRouter.use(requireAuth);
+// Authentication & Profile (Protected)
+apiRouter.get('/auth/me', requireAuth, getAuthMe);
+apiRouter.get('/profile', requireAuth, getProfile);
+apiRouter.patch('/profile', requireAuth, updateProfile);
+apiRouter.delete('/account', requireAuth, deleteAccount);
 
-// Authentication & Profile
-apiRouter.get('/auth/me', getAuthMe);
-apiRouter.get('/profile', getProfile);
-apiRouter.patch('/profile', updateProfile);
-apiRouter.delete('/account', deleteAccount);
+// Dashboard (Protected)
+apiRouter.get('/dashboard/stats', requireAuth, getDashboardStats);
+apiRouter.get('/dashboard/recent-scans', requireAuth, getRecentScans);
+apiRouter.get('/dashboard/risk-distribution', requireAuth, getRiskDistribution);
 
-// Dashboard
-apiRouter.get('/dashboard/stats', getDashboardStats);
-apiRouter.get('/dashboard/recent-scans', getRecentScans);
-apiRouter.get('/dashboard/risk-distribution', getRiskDistribution);
+// Scanning (Protected)
+apiRouter.post('/scans', requireAuth, uploadMiddleware.single('file'), createAndRunScan);
+apiRouter.get('/scans', requireAuth, listScans);
+apiRouter.delete('/scans', requireAuth, deleteAllScanHistory);
+apiRouter.get('/scans/:scanId', requireAuth, getScanById);
+apiRouter.post('/scans/:scanId/analyze', requireAuth, analyzeExistingScan);
+apiRouter.delete('/scans/:scanId', requireAuth, deleteScan);
 
-// Scanning
-apiRouter.post('/scans', uploadMiddleware.single('file'), createAndRunScan);
-apiRouter.get('/scans', listScans);
-apiRouter.delete('/scans', deleteAllScanHistory);
-apiRouter.get('/scans/:scanId', getScanById);
-apiRouter.post('/scans/:scanId/analyze', analyzeExistingScan);
-apiRouter.delete('/scans/:scanId', deleteScan);
+// Findings (Protected)
+apiRouter.get('/scans/:scanId/findings', requireAuth, getScanFindings);
+apiRouter.patch('/findings/:findingId', requireAuth, updateFindingById);
 
-// Findings
-apiRouter.get('/scans/:scanId/findings', getScanFindings);
-apiRouter.patch('/findings/:findingId', updateFindingById);
+// Risk Assessment (Protected)
+apiRouter.get('/scans/:scanId/risk', requireAuth, getScanRiskAssessment);
+apiRouter.post('/scans/:scanId/recommendations', requireAuth, generateScanRecommendations);
 
-// Risk Assessment
-apiRouter.get('/scans/:scanId/risk', getScanRiskAssessment);
-apiRouter.post('/scans/:scanId/recommendations', generateScanRecommendations);
+// Redaction (Protected)
+apiRouter.post('/scans/:scanId/redact', requireAuth, redactScanDocument);
+apiRouter.get('/scans/:scanId/redacted-file', requireAuth, downloadRedactedFile);
+apiRouter.get('/scans/:scanId/redaction-history', requireAuth, getRedactionHistory);
 
-// Redaction
-apiRouter.post('/scans/:scanId/redact', redactScanDocument);
-apiRouter.get('/scans/:scanId/redacted-file', downloadRedactedFile);
-apiRouter.get('/scans/:scanId/redaction-history', getRedactionHistory);
+// Reports (Protected)
+apiRouter.get('/scans/:scanId/report', requireAuth, getScanReport);
+apiRouter.get('/scans/:scanId/report/pdf', requireAuth, downloadScanReportPdf);
 
-// Reports
-apiRouter.get('/scans/:scanId/report', getScanReport);
-apiRouter.get('/scans/:scanId/report/pdf', downloadScanReportPdf);
+// Privacy AI Assistant (Protected)
+apiRouter.post('/assistant/chat', requireAuth, chatWithAssistant);
+apiRouter.get('/assistant/conversations', requireAuth, listAssistantConversations);
+apiRouter.get('/assistant/conversations/:conversationId', requireAuth, getAssistantConversation);
+apiRouter.delete('/assistant/conversations/:conversationId', requireAuth, deleteAssistantConversation);
 
-// Privacy AI Assistant
-apiRouter.post('/assistant/chat', chatWithAssistant);
-apiRouter.get('/assistant/conversations', listAssistantConversations);
-apiRouter.get('/assistant/conversations/:conversationId', getAssistantConversation);
-apiRouter.delete('/assistant/conversations/:conversationId', deleteAssistantConversation);
+// Security Alerts (Protected)
+apiRouter.get('/alerts', requireAuth, listAlerts);
+apiRouter.patch('/alerts/:alertId/read', requireAuth, markAlertAsRead);
+apiRouter.delete('/alerts/:alertId', requireAuth, deleteAlertById);
 
-// Security Alerts
-apiRouter.get('/alerts', listAlerts);
-apiRouter.patch('/alerts/:alertId/read', markAlertAsRead);
-apiRouter.delete('/alerts/:alertId', deleteAlertById);
-
-// User Settings
-apiRouter.get('/settings', getUserSettings);
-apiRouter.patch('/settings', updateUserSettings);
+// User Settings (Protected)
+apiRouter.get('/settings', requireAuth, getUserSettings);
+apiRouter.patch('/settings', requireAuth, updateUserSettings);
 
